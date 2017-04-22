@@ -3,6 +3,9 @@
     <head>
         <title>Node.js Chat</title>
         <meta charset="utf-8">
+        <script src="static/leap-0.6.4.js"></script>
+        <script src="static/lib/leap-plugins-0.1.6.js"></script>
+        <script src="static/lib/three.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.7.3/socket.io.js"></script>
         <script src="http://code.jquery.com/jquery-latest.min.js"></script>
     </head>
@@ -41,6 +44,7 @@
                 socket.on('data', function (data) {
                     console.log(data);
                 });
+                
                 // Nachricht senden
                 function senden(){
                     // Eingabefelder auslesen
@@ -59,6 +63,49 @@
                         senden();
                     }
                 });
+                
+                var ws;
+
+                // Support both the WebSocket and MozWebSocket objects
+                if ((typeof(WebSocket) == 'undefined') &&
+                    (typeof(MozWebSocket) != 'undefined')) {
+                  WebSocket = MozWebSocket;
+                }
+
+                // Create the socket with event handlers
+                function connectToWebSocket() {
+                  // Create and open the socket
+                  ws = new WebSocket("ws://localhost:6437/v4.json");
+
+                  // On successful connection
+                  ws.onopen = function(event) {
+                    var enableMessage = JSON.stringify({enableGestures: true});
+                    ws.send(enableMessage); // Enable gestures
+                    var backgroundMessage = JSON.stringify({background: true});
+                    ws.send(backgroundMessage); // Get frames in background
+                    console.log("open");
+                  };
+
+                  // On message received
+                  ws.onmessage = function(event) {
+                      var obj = JSON.parse(event.data);
+                      var str = JSON.stringify(obj, undefined, 2);
+                      socket.emit('data', obj);                
+                  };
+
+                  // On socket close
+                  ws.onclose = function(event) {
+                    ws = null;
+                    console.log("close");
+                  }
+
+                  // On socket error
+                  ws.onerror = function(event) {
+                    console.log("error");
+                  };
+                }
+
+                connectToWebSocket();
             });
         </script>
     </body>
