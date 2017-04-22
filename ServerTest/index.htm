@@ -16,6 +16,7 @@
             <input id="name" type="text" placeholder="dein Name" />
             <input id="text" type="text" placeholder="schreibe etwas..." />
             <input id="senden" type="submit" value="senden" />
+            <p id="out"></p>
         </footer>
         <script>
             $(document).ready(function(){
@@ -63,49 +64,48 @@
                         senden();
                     }
                 });
-                
-                var ws;
 
-                // Support both the WebSocket and MozWebSocket objects
-                if ((typeof(WebSocket) == 'undefined') &&
-                    (typeof(MozWebSocket) != 'undefined')) {
-                  WebSocket = MozWebSocket;
-                }
+                var out = document.getElementById("output");
+                var lastDist = undefined;
+                var distancechange = 0;
+                Leap.loop({
 
-                // Create the socket with event handlers
-                function connectToWebSocket() {
-                  // Create and open the socket
-                  ws = new WebSocket("ws://localhost:6437/v4.json");
+                    frame: function(frame){        
+                        var hand = frame.hands[0];
+                        if (hand){
+                            var thumbPosition = hand.thumb.tipPosition;
+                            var pointerPosition = hand.indexFinger.tipPosition;
+                            var absoluteDistance = Math.sqrt(
+                                Math.pow(pointerPosition[0] - thumbPosition[0], 2) +
+                                Math.pow(pointerPosition[1] - thumbPosition[1], 2) +
+                                Math.pow(pointerPosition[2] - thumbPosition[2], 2)
+                            );
+                            out.innerHTML = "";
+                            for(var i in thumbPosition){
+                                out.innerHTML += (Math.round(thumbPosition[i] * 1)/1) + "  " + (Math.round(pointerPosition[i] * 1)/1) + "<br/>";
+                            }
 
-                  // On successful connection
-                  ws.onopen = function(event) {
-                    var enableMessage = JSON.stringify({enableGestures: true});
-                    ws.send(enableMessage); // Enable gestures
-                    var backgroundMessage = JSON.stringify({background: true});
-                    ws.send(backgroundMessage); // Get frames in background
-                    console.log("open");
-                  };
+                            out.innerHTML += "<br/><br/><br/>";
 
-                  // On message received
-                  ws.onmessage = function(event) {
-                      var obj = JSON.parse(event.data);
-                      var str = JSON.stringify(obj, undefined, 2);
-                      socket.emit('data', obj);                
-                  };
+                            if(absoluteDistance < 30){
+                                out.innerHTML += "closed";
+                            }else{
+                                out.innerHTML += "open";
+                            }
+                            if(lastDist == undefined){
+                                lastDist = absoluteDistance;
+                            }
+                            console.log(absoluteDistance, lastDist);
+                            distancechange += absoluteDistance - lastDist;
+                            lastDist = absoluteDistance;
 
-                  // On socket close
-                  ws.onclose = function(event) {
-                    ws = null;
-                    console.log("close");
-                  }
 
-                  // On socket error
-                  ws.onerror = function(event) {
-                    console.log("error");
-                  };
-                }
+                            out.innerHTML += "<br/><br/><br/>";
+                            out.innerHTML += distancechange;
+                        }
+                    }
 
-                connectToWebSocket();
+                });
             });
         </script>
     </body>
